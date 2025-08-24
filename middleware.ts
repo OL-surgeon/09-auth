@@ -1,4 +1,6 @@
+// middleware.ts
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { serverGetSession } from "./lib/api/serverApi";
 import { parse } from "cookie";
 
@@ -6,73 +8,63 @@ const privateRoutes = ["/profile", "/notes"];
 const publicRoutes = ["/sign-in", "/sign-up"];
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const cookieStore = request.cookies;
+  const cookieStore = await cookies();
   let accessToken = cookieStore.get("accessToken")?.value;
   const refreshToken = cookieStore.get("refreshToken")?.value;
 
-  const isPublicRoute = publicRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-  const isPrivateRoute = privateRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-
-  const response = NextResponse.next();
+  const { pathname } = request.nextUrl;
+  const isPrivateRoute = privateRoutes.some((r) => pathname.startsWith(r));
+  const isPublicRoute = publicRoutes.some((r) => pathname.startsWith(r));
 
   if (!accessToken && refreshToken) {
     try {
-      const data = await serverGetSession();
-      const setCookie = data.headers["set-cookie"];
+      const res = await serverGetSession();
+      const setCookieHeader = res.headers["set-cookie"];
 
-      if (setCookie) {
-        const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
+      if (setCookieHeader) {
+        const cookieArray = Array.isArray(setCookieHeader)
+          ? setCookieHeader
+          : [setCookieHeader];
+
+        const response = isPublicRoute
+          ? NextResponse.redirect(new URL("/", request.url))
+          : NextResponse.next();
 
         for (const cookieStr of cookieArray) {
           const parsed = parse(cookieStr);
+          const options = {
+            path: parsed.Path || "/",
+
+            ...(parsed.Expires ? { expires: new Date(parsed.Expires) } : {}),
+            ...(parsed["Max-Age"] ? { maxAge: Number(parsed["Max-Age"]) } : {}),
+            httpOnly: true,
+          } as const;
 
           if (parsed.accessToken) {
             accessToken = parsed.accessToken;
-            response.cookies.set("accessToken", parsed.accessToken, {
-              path: parsed.Path || "/",
-              httpOnly: true,
-              secure: true,
-              sameSite: "lax",
-              expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
-              maxAge: parsed["Max-Age"] ? Number(parsed["Max-Age"]) : undefined,
-            });
+            response.cookies.set("accessToken", parsed.accessToken, options);
           }
-
           if (parsed.refreshToken) {
-            response.cookies.set("refreshToken", parsed.refreshToken, {
-              path: parsed.Path || "/",
-              httpOnly: true,
-              secure: true,
-              sameSite: "lax",
-              expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
-              maxAge: parsed["Max-Age"] ? Number(parsed["Max-Age"]) : undefined,
-            });
+            response.cookies.set("refreshToken", parsed.refreshToken, options);
           }
         }
+
+        return response;
       }
-    } catch (err) {
-      console.error("Session refresh failed:", err);
+    } catch (e) {
+      console.error("Session refresh failed:", e);
     }
   }
 
   if (!accessToken && isPrivateRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/sign-in";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/sign-in", request.url));
   }
 
   if (accessToken && isPublicRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/profile";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

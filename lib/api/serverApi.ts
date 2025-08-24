@@ -2,15 +2,11 @@ import { api } from "./api";
 import type { Note } from "@/types/note";
 import { cookies } from "next/headers";
 import type { User } from "@/types/user";
+import type { AxiosResponse } from "axios";
 
-export const serverGetSession = async () => {
-  const cookieStore = await cookies();
-  const { data } = await api.get("/auth/session", {
-    headers: {
-      Cookie: cookieStore.toString(),
-    },
-  });
-  return data;
+export const serverGetSession = async (): Promise<AxiosResponse<unknown>> => {
+  const store = await cookies();
+  return api.get("/auth/session", { headers: { Cookie: store.toString() } });
 };
 
 export const getServerMe = async (): Promise<User> => {
@@ -51,6 +47,7 @@ export const fetchNotes = async (
       perPage,
       ...(search.trim() ? { search } : {}),
       ...(tag ? { tag } : {}),
+      ...(tag !== undefined ? { tag } : {}),
     },
     headers: {
       Cookie: cookieStore.toString(),
