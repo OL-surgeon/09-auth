@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { serverGetSession } from "./lib/api/serverApi";
 import { parse } from "cookie";
 
@@ -8,7 +7,7 @@ const publicRoutes = ["/sign-in", "/sign-up"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const cookieStore = await cookies();
+  const cookieStore = request.cookies;
   let accessToken = cookieStore.get("accessToken")?.value;
   const refreshToken = cookieStore.get("refreshToken")?.value;
 
@@ -19,32 +18,47 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
+  const response = NextResponse.next();
+
   if (!accessToken && refreshToken) {
     try {
       const data = await serverGetSession();
       const setCookie = data.headers["set-cookie"];
+
       if (setCookie) {
         const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
+
         for (const cookieStr of cookieArray) {
           const parsed = parse(cookieStr);
-          const options = {
-            expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
-            path: parsed.Path || "/",
-            maxAge: parsed["Max-Age"] ? Number(parsed["Max-Age"]) : undefined,
-          };
-          if (parsed.accessToken) accessToken = parsed.accessToken;
-          if (parsed.accessToken)
-            cookieStore.set("accessToken", parsed.accessToken, options);
-          if (parsed.refreshToken)
-            cookieStore.set("refreshToken", parsed.refreshToken, options);
+
+          if (parsed.accessToken) {
+            accessToken = parsed.accessToken;
+            response.cookies.set("accessToken", parsed.accessToken, {
+              path: parsed.Path || "/",
+              httpOnly: true,
+              secure: true,
+              sameSite: "lax",
+              expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
+              maxAge: parsed["Max-Age"] ? Number(parsed["Max-Age"]) : undefined,
+            });
+          }
+
+          if (parsed.refreshToken) {
+            response.cookies.set("refreshToken", parsed.refreshToken, {
+              path: parsed.Path || "/",
+              httpOnly: true,
+              secure: true,
+              sameSite: "lax",
+              expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
+              maxAge: parsed["Max-Age"] ? Number(parsed["Max-Age"]) : undefined,
+            });
+          }
         }
       }
     } catch (err) {
       console.error("Session refresh failed:", err);
     }
   }
-
-  const response = NextResponse.next();
 
   if (!accessToken && isPrivateRoute) {
     const url = request.nextUrl.clone();

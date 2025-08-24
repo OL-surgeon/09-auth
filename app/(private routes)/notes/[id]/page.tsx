@@ -4,14 +4,17 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 import NoteDetailsClient from "./NoteDetails.client";
-import { fetchNoteById } from "@/lib/api/clientApi";
+import { fetchNoteById } from "@/lib/api/serverApi"; // ⚡ серверна функція
 import { Metadata } from "next";
+
 type Props = {
   params: Promise<{ id: string }>;
 };
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const note = await fetchNoteById(id);
+  const note = await fetchNoteById(id); // серверний API
+
   return {
     title: `Note: ${note.title}`,
     description: note.content.slice(0, 30),
@@ -32,18 +35,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
   };
 }
+
 export default async function NoteDetailsPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const actualParams = await params;
+  const { id } = await params;
 
   const queryClient = new QueryClient();
 
   await queryClient.prefetchQuery({
-    queryKey: ["note", actualParams.id],
-    queryFn: () => fetchNoteById(actualParams.id),
+    queryKey: ["note", id],
+    queryFn: () => fetchNoteById(id), // серверний API
   });
 
   const dehydratedState = dehydrate(queryClient);

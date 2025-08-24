@@ -1,7 +1,7 @@
 // lib/api/clientApi.ts
 import { api } from "./api";
 import { Note, NewNote } from "@/types/note";
-import { User } from "@/types/user";
+import { User, UpdateUserDto } from "@/types/user"; // 👈 UpdateUserDto треба додати у types/user.ts
 import axios from "axios";
 
 export interface NoteResponse {
@@ -83,19 +83,44 @@ export const registerUser = async (
   email: string,
   password: string
 ): Promise<User> => {
-  const { data } = await api.post<User>("/auth/register", { email, password });
-  return data;
+  return fetchWithRetry(() =>
+    api
+      .post<User>("/auth/register", { email, password })
+      .then((res) => res.data)
+  );
 };
 
 export const loginUser = async (
   email: string,
   password: string
 ): Promise<User> => {
-  const { data } = await api.post<User>("/auth/login", { email, password });
-  return data;
+  return fetchWithRetry(() =>
+    api.post<User>("/auth/login", { email, password }).then((res) => res.data)
+  );
 };
 
 export const logoutUser = async (): Promise<void> => {
-  await api.post("/auth/logout");
+  await fetchWithRetry(() => api.post("/auth/logout").then((res) => res.data));
 };
+
+export const getSession = async (): Promise<{ valid: boolean }> => {
+  return fetchWithRetry(() =>
+    api.get<{ valid: boolean }>("/auth/session").then((res) => res.data)
+  );
+};
+
+export const getCurrentUser = async (): Promise<User> => {
+  return fetchWithRetry(() =>
+    api.get<User>("/users/me").then((res) => res.data)
+  );
+};
+
+export const updateCurrentUser = async (
+  payload: UpdateUserDto
+): Promise<User> => {
+  return fetchWithRetry(() =>
+    api.patch<User>("/users/me", payload).then((res) => res.data)
+  );
+};
+
 export { api };

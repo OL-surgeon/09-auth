@@ -1,33 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import css from "./EditProfilePage.module.css";
 import { useAuthStore } from "@/lib/store/authStore";
-import { api } from "@/lib/api/api";
+import { updateCurrentUser } from "@/lib/api/clientApi";
 
 export default function EditProfilePage() {
   const router = useRouter();
   const { user, setUser } = useAuthStore();
-  const [username, setUsername] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [username, setUsername] = useState(user?.username || "");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      router.push("/sign-in");
-    } else {
-      setUsername(user.email.split("@")[0]);
-      setLoading(false);
-    }
-  }, [user, router]);
+  if (!user) {
+    router.push("/sign-in");
+    return null;
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
     try {
-      const { data } = await api.put(`/users/${user?.id}`, { username });
-      setUser(data);
+      const updatedUser = await updateCurrentUser({ username });
+      setUser(updatedUser);
       router.push("/profile");
     } catch (err) {
       console.error("Update failed:", err);
@@ -39,8 +38,6 @@ export default function EditProfilePage() {
     router.push("/profile");
   };
 
-  if (loading) return <p>Loading...</p>;
-
   return (
     <main className={css.mainContent}>
       <div className={css.profileCard}>
@@ -48,7 +45,7 @@ export default function EditProfilePage() {
 
         <div className={css.avatarWrapper}>
           <Image
-            src="https://ac.goit.global/fullstack/react/default-avatar.jpg"
+            src={user.avatar || "/default-avatar.png"}
             alt="User Avatar"
             width={120}
             height={120}
@@ -68,11 +65,11 @@ export default function EditProfilePage() {
             />
           </div>
 
-          <p>Email: {user?.email}</p>
+          <p>Email: {user.email}</p>
 
           <div className={css.actions}>
-            <button type="submit" className={css.saveButton}>
-              Save
+            <button type="submit" className={css.saveButton} disabled={loading}>
+              {loading ? "Saving..." : "Save"}
             </button>
             <button
               type="button"
