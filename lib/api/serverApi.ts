@@ -46,7 +46,7 @@ export const fetchNotes = async (
       page,
       perPage,
       ...(search.trim() ? { search } : {}),
-      ...(tag ? { tag } : {}),
+      tag,
     },
     headers: {
       Cookie: cookieStore.toString(),
