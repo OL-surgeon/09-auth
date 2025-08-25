@@ -22,7 +22,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
       setChecking(true);
 
       try {
-        const res = await api.get("/auth/me");
+        const res = await api.get("/users/me");
         const user = res.data;
 
         if (user?.id) {
