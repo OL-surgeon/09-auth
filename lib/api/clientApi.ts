@@ -85,7 +85,7 @@ export const registerUser = async (
 ): Promise<User> => {
   return fetchWithRetry(() =>
     api
-      .post<User>("/auth/register", { email, password })
+      .post<User>("/users/register", { email, password })
       .then((res) => res.data)
   );
 };
