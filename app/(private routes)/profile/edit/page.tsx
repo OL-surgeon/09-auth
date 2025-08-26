@@ -1,87 +1,77 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { getCurrentUser, updateCurrentUser } from "@/lib/api/clientApi";
 import css from "./EditProfilePage.module.css";
+import Image from "next/image";
 import { useAuthStore } from "@/lib/store/authStore";
-import { updateCurrentUser } from "@/lib/api/clientApi";
-
-export default function EditProfilePage() {
+const EditProfile = () => {
+  const [username, setUsername] = useState("");
+  const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
   const router = useRouter();
-  const { user, setUser } = useAuthStore();
-  const [username, setUsername] = useState(user?.username || "");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  if (!user) {
-    router.push("/sign-in");
-    return null;
-  }
+  useEffect(() => {
+    getCurrentUser().then((user) => {
+      setUsername(user.username ?? "");
+    });
+  }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const updatedUser = await updateCurrentUser({ username });
-      setUser(updatedUser);
-      router.push("/profile");
-    } catch (err) {
-      console.error("Update failed:", err);
-      setError("Failed to update profile");
-    }
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(event.target.value);
   };
-
-  const handleCancel = () => {
+  const handleSaveUser = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const updatedUser = await updateCurrentUser({ username });
+    setUser(updatedUser);
     router.push("/profile");
   };
-
+  const handleBack = () => {
+    router.back();
+  };
   return (
     <main className={css.mainContent}>
       <div className={css.profileCard}>
         <h1 className={css.formTitle}>Edit Profile</h1>
 
-        <div className={css.avatarWrapper}>
-          <Image
-            src={user.avatar || "/default-avatar.png"}
-            alt="User Avatar"
-            width={120}
-            height={120}
-            className={css.avatar}
-          />
-        </div>
+        <Image
+          src="https://ac.goit.global/fullstack/react/default-avatar.jpg"
+          alt="User Avatar"
+          width={120}
+          height={120}
+          className={css.avatar}
+        />
 
-        <form className={css.profileInfo} onSubmit={handleSave}>
+        <form onSubmit={handleSaveUser} className={css.profileInfo}>
           <div className={css.usernameWrapper}>
             <label htmlFor="username">Username:</label>
             <input
               id="username"
               type="text"
-              className={css.input}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              className={css.input}
+              onChange={handleChange}
             />
           </div>
 
-          <p>Email: {user.email}</p>
+          <p>Email: {user?.email}</p>
 
           <div className={css.actions}>
-            <button type="submit" className={css.saveButton} disabled={loading}>
-              {loading ? "Saving..." : "Save"}
+            <button type="submit" className={css.saveButton}>
+              Save
             </button>
             <button
               type="button"
               className={css.cancelButton}
-              onClick={handleCancel}
+              onClick={handleBack}
             >
               Cancel
             </button>
           </div>
-          {error && <p className={css.error}>{error}</p>}
         </form>
       </div>
     </main>
   );
-}
+};
+
+export default EditProfile;

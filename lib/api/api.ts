@@ -85,11 +85,7 @@
 // }
 import axios from "axios";
 
-const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
-const baseURL = `${base}/api`;
-
 export const api = axios.create({
-  baseURL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL + "/api",
   withCredentials: true,
 });
